@@ -170,6 +170,10 @@ struct in_addr {
 extern const char version_servald[];
 extern const char copyright_servald[];
 
+#ifndef DEBUG_ENABLED
+#define DEBUG_ENABLED(S) config.debug.S
+#endif
+
 /* Fundamental types.
  */
 

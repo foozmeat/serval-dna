@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <assert.h>
 
 #include "serval.h"
+#include "str.h"
 #include "conf.h"
 #include "log.h"
 #include "strbuf_helpers.h"
@@ -173,7 +174,7 @@ int _esocket(struct __sourceloc __whence, int domain, int type, int protocol)
   int fd;
   if ((fd = socket(domain, type, protocol)) == -1)
     return WHYF_perror("socket(%s, %s, 0)", alloca_socket_domain(domain), alloca_socket_type(type));
-  if (config.debug.io || config.debug.verbose_io)
+  if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
     DEBUGF("socket(%s, %s, 0) -> %d", alloca_socket_domain(domain), alloca_socket_type(type), fd);
   return fd;
 }
@@ -182,7 +183,7 @@ int _socket_connect(struct __sourceloc __whence, int sock, const struct sockaddr
 {
   if (connect(sock, (struct sockaddr *)addr, addrlen) == -1)
     return WHYF_perror("connect(%d,%s,%lu)", sock, alloca_sockaddr(addr, addrlen), (unsigned long)addrlen);
-  if (config.debug.io || config.debug.verbose_io)
+  if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
     DEBUGF("connect(%d, %s, %lu)", sock, alloca_sockaddr(addr, addrlen), (unsigned long)addrlen);
   return 0;
 }
@@ -194,12 +195,12 @@ int _socket_bind(struct __sourceloc __whence, int sock, const struct sockaddr *a
     assert(((struct sockaddr_un *)addr)->sun_path[addrlen - sizeof ((struct sockaddr_un *)addr)->sun_family - 1] == '\0');
     if (unlink(((struct sockaddr_un *)addr)->sun_path) == -1 && errno != ENOENT)
       WARNF_perror("unlink(%s)", alloca_str_toprint(((struct sockaddr_un *)addr)->sun_path));
-    if (config.debug.io || config.debug.verbose_io)
+    if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
       DEBUGF("unlink(%s)", alloca_str_toprint(((struct sockaddr_un *)addr)->sun_path));
   }
   if (bind(sock, (struct sockaddr *)addr, addrlen) == -1)
     return WHYF_perror("bind(%d,%s,%lu)", sock, alloca_sockaddr(addr, addrlen), (unsigned long)addrlen);
-  if (config.debug.io || config.debug.verbose_io)
+  if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
     DEBUGF("bind(%d, %s, %lu)", sock, alloca_sockaddr(addr, addrlen), (unsigned long)addrlen);
   return 0;
 }
@@ -208,7 +209,7 @@ int _socket_listen(struct __sourceloc __whence, int sock, int backlog)
 {
   if (listen(sock, backlog) == -1)
     return WHYF_perror("listen(%d,%d)", sock, backlog);
-  if (config.debug.io || config.debug.verbose_io)
+  if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
     DEBUGF("listen(%d, %d)", sock, backlog);
   return 0;
 }
@@ -219,7 +220,7 @@ int _socket_set_reuseaddr(struct __sourceloc __whence, int sock, int reuseP)
     WARNF_perror("setsockopt(%d,SOL_SOCKET,SO_REUSEADDR,&%d,%u)", sock, reuseP, (unsigned)sizeof reuseP);
     return -1;
   }
-  if (config.debug.io || config.debug.verbose_io)
+  if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
     DEBUGF("setsockopt(%d, SOL_SOCKET, SO_REUSEADDR, &%d, %u)", sock, reuseP, (unsigned)sizeof reuseP);
   return 0;
 }
@@ -230,7 +231,7 @@ int _socket_set_rcvbufsize(struct __sourceloc __whence, int sock, unsigned buffe
     WARNF_perror("setsockopt(%d,SOL_SOCKET,SO_RCVBUF,&%u,%u)", sock, buffer_size, (unsigned)sizeof buffer_size);
     return -1;
   }
-  if (config.debug.io || config.debug.verbose_io)
+  if (DEBUG_ENABLED(io) || DEBUG_ENABLED(verbose_io))
     DEBUGF("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, &%u, %u)", sock, buffer_size, (unsigned)sizeof buffer_size);
   return 0;
 }

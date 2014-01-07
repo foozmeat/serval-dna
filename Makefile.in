@@ -95,7 +95,7 @@ DEFS=	@DEFS@
 
 all:	servald libmonitorclient.so libmonitorclient.a test
 
-test:   tfw_createfile directory_service fakeradio config_test
+test:   tfw_createfile directory_service fakeradio config_test simulator
 
 sqlite-amalgamation-3070900/sqlite3.o:	sqlite-amalgamation-3070900/sqlite3.c
 	@echo CC $<
@@ -107,7 +107,7 @@ version.o: *.h *.c version_string.sh COPYRIGHT.txt Makefile
 	 && C="`sed -e :a -e N -e '$$!ba' -e 's/[\\\\"]/\\\\&/g' -e 's/\\n/\\\\n/g' COPYRIGHT.txt`" \
 	 && $(CC) -c version_servald.c -o $@ -DSERVALD_VERSION="\"$$V\"" -DSERVALD_COPYRIGHT="\"$$C\""
 
-%.o:	%.c
+%.o:	%.c $(HDRS) Makefile
 	@echo CC $<
 	@$(CC) $(CFLAGS) $(DEFS) -c $< -o $@
 
@@ -130,6 +130,10 @@ tfw_createfile: tfw_createfile.o str.o strbuf.o strbuf_helpers.o
 fakeradio: fakeradio.o
 	@echo LINK $@
 	@$(CC) $(CFLAGS) -Wall -o $@ fakeradio.o
+
+simulator: conf.o conf_om.o conf_parse.o conf_schema.o simulator.o socket.o fdqueue.o performance_timing.o str.o os.o mem.o net.o log_util.o strbuf.o strbuf_helpers.o dataformats.o xprintf.o instance.o version.o
+	@echo LINK $@
+	@$(CC) $(CFLAGS) -Wall -o $@ $^ $(LDFLAGS)
 
 config_test: config_test.o conf_om.o conf_schema.o conf_parse.o str.o strbuf.o strbuf_helpers.o mem.o dataformats.o net.o log_util.o
 	@echo LINK $@
