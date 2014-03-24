@@ -932,8 +932,13 @@ int app_server_start(const struct cli_parsed *parsed, struct cli_context *contex
       RETURN(WHY("Server process did not start"));
     ret = 0;
   }
-  cli_field_name(context, "instancepath", ":");
-  cli_put_string(context, serval_instancepath(), "\n");
+  const char *ipath = instance_path();
+  if (ipath) {
+    cli_field_name(context, "instancepath", ":");
+    cli_put_string(context, ipath, "\n");
+  }
+  cli_field_name(context, "pidfile", ":");
+  cli_put_string(context, server_pidfile_path(), "\n");
   cli_field_name(context, "pid", ":");
   cli_put_long(context, pid, "\n");
   char buff[256];
@@ -968,9 +973,13 @@ int app_server_stop(const struct cli_parsed *parsed, struct cli_context *context
     DEBUG_cli_parsed(parsed);
   int			pid, tries, running;
   time_ms_t		timeout;
-  const char *instancepath = serval_instancepath();
-  cli_field_name(context, "instancepath", ":");
-  cli_put_string(context, instancepath, "\n");
+  const char *ipath = instance_path();
+  if (ipath) {
+    cli_field_name(context, "instancepath", ":");
+    cli_put_string(context, ipath, "\n");
+  }
+  cli_field_name(context, "pidfile", ":");
+  cli_put_string(context, server_pidfile_path(), "\n");
   pid = server_pid();
   /* Not running, nothing to stop */
   if (pid <= 0)
@@ -983,8 +992,8 @@ int app_server_stop(const struct cli_parsed *parsed, struct cli_context *context
   running = pid;
   while (running == pid) {
     if (tries >= 5) {
-      WHYF("Servald pid=%d for instance '%s' did not stop after %d SIGHUP signals",
-	   pid, instancepath, tries);
+      WHYF("Servald pid=%d (pidfile=%s) did not stop after %d SIGHUP signals",
+	   pid, server_pidfile_path(), tries);
       return 253;
     }
     ++tries;
@@ -999,7 +1008,7 @@ int app_server_stop(const struct cli_parsed *parsed, struct cli_context *context
 	break;
       }
       WHY_perror("kill");
-      WHYF("Error sending SIGHUP to Servald pid=%d for instance '%s'", pid, instancepath);
+      WHYF("Error sending SIGHUP to Servald pid=%d (pidfile %s)", pid, server_pidfile_path());
       return 252;
     }
     /* Allow a few seconds for the process to die. */
@@ -1019,8 +1028,13 @@ int app_server_status(const struct cli_parsed *parsed, struct cli_context *conte
   if (config.debug.verbose)
     DEBUG_cli_parsed(parsed);
   int pid = server_pid();
-  cli_field_name(context, "instancepath", ":");
-  cli_put_string(context, serval_instancepath(), "\n");
+  const char *ipath = instance_path();
+  if (ipath) {
+    cli_field_name(context, "instancepath", ":");
+    cli_put_string(context, ipath, "\n");
+  }
+  cli_field_name(context, "pidfile", ":");
+  cli_put_string(context, server_pidfile_path(), "\n");
   cli_field_name(context, "status", ":");
   cli_put_string(context, pid > 0 ? "running" : "stopped", "\n");
   if (pid > 0) {

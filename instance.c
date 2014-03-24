@@ -24,46 +24,133 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "strbuf.h"
 #include "strbuf_helpers.h"
 
-static char *thisinstancepath = NULL;
+/*
+ * A default INSTANCE_PATH can be set on the ./configure command line, eg:
+ *
+ *      ./configure INSTANCE_PATH=/var/local/serval/node
+ *
+ * This will cause servald to never use FHS paths, and always use an instance
+ * path, even if the SERVALINSTANCE_PATH environment variable is not set.
+ */
+#ifdef INSTANCE_PATH
+#define DEFAULT_INSTANCE_PATH INSTANCE_PATH
+#else
+#ifdef ANDROID
+#define DEFAULT_INSTANCE_PATH "/data/data/org.servalproject/var/serval-node"
+#else
+#define DEFAULT_INSTANCE_PATH NULL
+#endif
+#endif
 
-const char *serval_instancepath()
+static int know_instancepath = 0;
+static char *instancepath = NULL;
+
+const char *instance_path()
 {
-  if (thisinstancepath)
-    return thisinstancepath;
-  const char *instancepath = getenv("SERVALINSTANCE_PATH");
-  if (!instancepath)
-    instancepath = DEFAULT_INSTANCE_PATH;
+  if (!know_instancepath) {
+    instancepath = getenv("SERVALINSTANCE_PATH");
+    if (instancepath)
+      instancepath = DEFAULT_INSTANCE_PATH;
+  }
   return instancepath;
 }
 
-int formf_serval_instance_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+static int vformf_path(struct __sourceloc __whence, strbuf b, const char *syspath, const char *fmt, va_list ap)
 {
-  va_list ap;
-  va_start(ap, fmt);
-  int ret = vformf_serval_instance_path(__whence, buf, bufsiz, fmt, ap);
-  va_end(ap);
-  return ret;
-}
-
-int vformf_serval_instance_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, va_list ap)
-{
-  strbuf b = strbuf_local(buf, bufsiz);
-  strbuf_va_vprintf(b, fmt, ap);
-  if (!strbuf_overrun(b) && strbuf_len(b) && buf[0] != '/') {
-    strbuf_reset(b);
-    strbuf_puts(b, serval_instancepath());
-    strbuf_putc(b, '/');
+  if (fmt)
     strbuf_va_vprintf(b, fmt, ap);
+  if (!strbuf_overrun(b) && (strbuf_len(b) == 0 || strbuf_str(b)[0] != '/')) {
+    strbuf_reset(b);
+    const char *ipath = instance_path();
+    strbuf_puts(b, ipath ? ipath : syspath);
+    if (fmt) {
+      strbuf_putc(b, '/');
+      strbuf_va_vprintf(b, fmt, ap);
+    }
   }
   if (!strbuf_overrun(b))
     return 1;
   WHYF("instance path overflow (strlen %lu, sizeof buffer %lu): %s",
       (unsigned long)strbuf_count(b),
-      (unsigned long)bufsiz,
-      alloca_str_toprint(buf));
+      (unsigned long)strbuf_size(b),
+      alloca_str_toprint(strbuf_str(b)));
   return 0;
 }
 
-int create_serval_instance_dir() {
-  return emkdirs(serval_instancepath(), 0700);
+int _formf_etc_serval_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vformf_path(__whence, strbuf_local(buf, bufsiz), "/etc/serval", fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int _formf_run_serval_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = _vformf_run_serval_path(__whence, buf, bufsiz, fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int _vformf_run_serval_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, va_list ap)
+{
+  return vformf_path(__whence, strbuf_local(buf, bufsiz), "/var/run/serval", fmt, ap);
+}
+
+int _formf_log_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vformf_path(__whence, strbuf_local(buf, bufsiz), "/var/log", fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int _strbuf_log_serval_path(struct __sourceloc __whence, strbuf sb, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vformf_path(__whence, sb, "/var/log/serval", fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int _formf_cache_serval_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vformf_path(__whence, strbuf_local(buf, bufsiz), "/var/cache/serval", fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int _formf_tmp_serval_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vformf_path(__whence, strbuf_local(buf, bufsiz), "/tmp/serval", fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int _formf_servald_proc_path(struct __sourceloc __whence, char *buf, size_t bufsiz, const char *fmt, ...)
+{
+  va_list ap;
+  va_start(ap, fmt);
+  int ret = vformf_path(__whence, strbuf_local(buf, bufsiz), "/var/run/serval/proc", fmt, ap);
+  va_end(ap);
+  return ret;
+}
+
+int create_serval_instance_dir()
+{
+  const char *ipath = instance_path();
+  if (ipath) {
+    if (emkdirs(ipath, 0700) == -1)
+      return -1;
+  }
+  return 0;
 }

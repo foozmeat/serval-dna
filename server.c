@@ -34,6 +34,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define PIDFILE_NAME	  "servald.pid"
 #define STOPFILE_NAME	  "servald.stop"
 
+static char pidfile_path[256];
+
 #define EXEC_NARGS 20
 char *exec_args[EXEC_NARGS + 1];
 unsigned exec_argc = 0;
@@ -49,29 +51,43 @@ void crash_handler(int signal);
  */
 int server_pid()
 {
-  const char *instancepath = serval_instancepath();
-  struct stat st;
-  if (stat(instancepath, &st) == -1)
-    return WHYF_perror("stat(%s)", alloca_str_toprint(instancepath));
-  if ((st.st_mode & S_IFMT) != S_IFDIR)
-    return WHYF("Instance path '%s' is not a directory", instancepath);
-  char filename[1024];
-  if (!FORM_SERVAL_INSTANCE_PATH(filename, PIDFILE_NAME))
+  char dirname[1024];
+  if (!FORM_RUN_SERVAL_PATH(dirname, NULL))
     return -1;
-  FILE *f = fopen(filename, "r");
+  struct stat st;
+  if (stat(dirname, &st) == -1)
+    return WHYF_perror("stat(%s)", alloca_str_toprint(dirname));
+  if ((st.st_mode & S_IFMT) != S_IFDIR)
+    return WHYF("Not a directory: %s", dirname);
+  const char *ppath = server_pidfile_path();
+  if (ppath == NULL)
+    return -1;
+  const char *p = strrchr(ppath, '/');
+  assert(p != NULL);
+
+  FILE *f = fopen(ppath, "r");
   if (f == NULL) {
     if (errno != ENOENT)
-      return WHYF_perror("fopen(%s,\"r\")", alloca_str_toprint(filename));
+      return WHYF_perror("fopen(%s,\"r\")", alloca_str_toprint(ppath));
   } else {
     char buf[20];
     int pid = (fgets(buf, sizeof buf, f) != NULL) ? atoi(buf) : -1;
     fclose(f);
     if (pid > 0 && kill(pid, 0) != -1)
       return pid;
-    INFOF("Unlinking stale pidfile %s", filename);
-    unlink(filename);
+    INFOF("Unlinking stale pidfile %s", ppath);
+    unlink(ppath);
   }
   return 0;
+}
+
+const char *_server_pidfile_path(struct __sourceloc __whence)
+{
+  if (!pidfile_path[0]) {
+    if (!FORM_RUN_SERVAL_PATH(pidfile_path, PIDFILE_NAME))
+      return NULL;
+  }
+  return pidfile_path;
 }
 
 void server_save_argv(int argc, const char *const *argv)

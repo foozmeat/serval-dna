@@ -424,11 +424,6 @@ static void _logs_printf_nl(int level, struct __sourceloc whence, const char *fm
   va_end(ap);
 }
 
-const char *log_file_directory_path()
-{
-  return config.log.file.directory_path;
-}
-
 static void _compute_file_start_time(_log_iterator *it)
 {
   if (it->file_start_time == 0) {
@@ -448,7 +443,8 @@ static void _open_log_file(_log_iterator *it)
       _log_file_path = getenv("SERVALD_LOG_FILE");
     if (_log_file_path == NULL && !cf_limbo) {
       strbuf sbfile = strbuf_local(_log_file_path_buf, sizeof _log_file_path_buf);
-      strbuf_path_join(sbfile, serval_instancepath(), log_file_directory_path(), NULL);
+      strbuf_log_serval_path(sbfile);
+      strbuf_path_join(sbfile, config.log.file.directory_path, NULL);
       _compute_file_start_time(it);
       if (config.log.file.path[0]) {
 	strbuf_path_join(sbfile, config.log.file.path, NULL);
@@ -486,7 +482,8 @@ static void _open_log_file(_log_iterator *it)
 	  _logs_printf_nl(LOG_LEVEL_INFO, __NOWHERE__, "Logging to %s (fd %d)", _log_file_path, fileno(_log_file));
 	  // Update the log symlink to point to the latest log file.
 	  strbuf sbsymlink = strbuf_alloca(400);
-	  strbuf_path_join(sbsymlink, serval_instancepath(), "serval.log", NULL);
+	  strbuf_log_path(sbsymlink);
+	  strbuf_path_join(sbsymlink, "serval.log", NULL);
 	  if (strbuf_overrun(sbsymlink))
 	    _logs_printf_nl(LOG_LEVEL_ERROR, __HERE__, "Cannot form log symlink name - buffer overrun");
 	  else {
@@ -741,7 +738,7 @@ int log_backtrace(int level, struct __sourceloc whence)
   if (get_self_executable_path(execpath, sizeof execpath) == -1)
     return WHY("cannot log backtrace: own executable path unknown");
   char tempfile[MAXPATHLEN];
-  if (!FORM_SERVAL_INSTANCE_PATH(tempfile, "servalgdb.XXXXXX"))
+  if (!FORM_TMP_SERVAL_PATH(tempfile, "servalgdb.XXXXXX"))
     return -1;
   int tmpfd = mkstemp(tempfile);
   if (tmpfd == -1)
